@@ -1,8 +1,12 @@
+extern crate rand;
 use macroquad::prelude::*;
+use rand::random;
+use std::process;
 
+// Langton's Ant Struct
 struct Ant {
-    x: usize,
-    y: usize,
+    x: i32,
+    y: i32,
     direction: Direction,
 }
 
@@ -30,7 +34,7 @@ impl Ant {
 
     // Moves the ant forward, turning appropriately depending on the color of the square.
     // Move Forward -> Turn Ant -> Flip Square Color
-    fn move_forward(&mut self, board: &mut Vec<Vec<char>>) {
+    fn move_forward(&mut self, grid: &mut Vec<Vec<i32>>) {
 
         // Move forward in the direction that the ant is facing.
         match self.direction {
@@ -40,15 +44,26 @@ impl Ant {
             Direction::West => self.x -= 1,
         };
 
+        // Wrap around the grid if out of bounds.
+        if self.x >= grid.len() as i32 {
+            self.x = 0;
+        } else if self.x < 0 {
+            self.x = (grid.len() - 1) as i32;
+        }
+        if self.y >= grid[0].len() as i32 {
+            self.y = 0;
+        } else if self.y < 0 {
+            self.y = (grid[0].len() - 1) as i32;
+        }
+
         // Turn right if on white square, turn left if on black square, then flip square color.
-        if board[self.x][self.y] == 'o' {
+        if grid[self.x as usize][self.y as usize] == 0 {
             self.turn_right();
-            board[self.x][self.y] = 'x';
+            grid[self.x as usize][self.y as usize] = 1;
         } else {
             self.turn_left();
-            board[self.x][self.y] = 'o';
+            grid[self.x as usize][self.y as usize] = 0;
         }
-        
     }
 }
 
@@ -59,86 +74,80 @@ enum Direction {
     West,
 }
 
-fn print_board(board: &Vec<Vec<char>>) {
-   for row in board {
-        for cell in row {
-            print!("{} ", cell);
+fn window_conf() -> Conf {
+        Conf {
+            window_title: "Langton's Antfarm".to_owned(),
+            fullscreen: true,
+            ..Default::default()
         }
-        println!();
-    } 
 }
 
-
-fn test() {
-
-    let mut board = vec![vec!['o'; 80]; 80];
-
-    let mut ant = Ant {
-        x: 40,
-        y: 40,
-        direction: Direction::North
-    };
-
-    for _i in 0..11149 {
-        ant.move_forward(&mut board);
+// Draw Grid
+fn draw_grid(square_count_x: i32, square_count_y: i32, width: i32, height: i32, size: i32) {
+    for n in 1..width {
+       draw_line((n * size) as f32, 0 as f32, (n * size) as f32, height as f32, 1f32, BLACK);
     }
 
-    print_board(&board);
-}
-
-const PLAYER_SIZE: Vec2 = const_vec2!([150f32, 40f32]);
-
-struct Player {
-    rect: Rect,
-}
-
-impl Player {
-    pub fn new() -> Self {
-       Self {
-           rect: Rect::new(
-               screen_width() * 0.5f32 - PLAYER_SIZE.x * 0.5f32,
-               screen_height() - 100f32,
-               PLAYER_SIZE.x,
-               PLAYER_SIZE.y,
-           ),
-       }
+    for n in 1..height {
+        draw_line(0 as f32, (n * size) as f32, width as f32, (n * size) as f32, 1f32, BLACK);
     }
-
-    pub fn draw(&self) {
-        draw_rectangle(self.rect.x, self.rect.y, self.rect.w, self.rect.h, BLUE);
-    }
-
 }
 
-// Side Quest to Make the Breakout Game to Get an Understanding of Macroquad
-#[macroquad::main("BREAKOUT")]
+fn color_squares(grid: &mut Vec<Vec<i32>>) {
+    for x in 0..grid.len() {
+        for y in 0..grid[x].len() {
+            if grid[x][y] == 0 {
+                draw_rectangle((x * 10) as f32, (y * 10) as f32, 10f32, 10f32, WHITE);
+            } else {
+                draw_rectangle((x * 10) as f32, (y * 10) as f32, 10f32, 10f32, BLACK);
+            }
+        }
+    }
+}
+
+#[macroquad::main(window_conf)]
 async fn main() {
 
-    let player = Player::new();
+    // Initialize Grid Information.
+    const SQUARE_SIZE: i32 = 10;
+    let screen_width: i32 = screen_width() as i32;
+    let screen_height: i32 = screen_height() as i32;
+    let square_count_width: i32 = screen_width / SQUARE_SIZE;
+    let square_count_height: i32 = screen_height / SQUARE_SIZE;
+
+    // Initialize Board.
+    let mut grid = vec![vec![0; square_count_height as usize]; square_count_width as usize];
+
+    // Initialize 5 ants in random locations with random directions.
+    let mut ants = Vec::new();
+    for _ in 0..5 {
+        ants.push(Ant {
+            x: random::<i32>() % square_count_width,
+            y: random::<i32>() % square_count_height,
+            direction: match random::<i32>() % 4 {
+                0 => Direction::North,
+                1 => Direction::East,
+                2 => Direction::South,
+                3 => Direction::West,
+                _ => Direction::North,
+            }
+        });
+    r
 
     loop {
         clear_background(WHITE);
-        player.draw();
+
+        // Move ants forward.
+        for ant in &mut ants {
+            ant.move_forward(&mut grid);
+        }
+
+        // Color squares.
+        color_squares(&mut grid);
+
+        // Draw grid lines.
+        draw_grid(square_count_width, square_count_height, screen_width, screen_height, SQUARE_SIZE);
+
         next_frame().await
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
