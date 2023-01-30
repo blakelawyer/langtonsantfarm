@@ -132,7 +132,7 @@ async fn main() {
                 _ => Direction::North,
             }
         });
-    r
+    }
 
     loop {
         clear_background(WHITE);
